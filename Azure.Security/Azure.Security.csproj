@@ -38,6 +38,7 @@
 		<None Include="web.config.uninstall.xdt" />
 	</ItemGroup>
 	<ItemGroup>
+		<PackageReference Include="Azure.Data.Tables" Version="12.8.1" />
 		<PackageReference Include="Azure.Storage.Blobs" Version="12.18.0" />
 	</ItemGroup>
 </Project>
