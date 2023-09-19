@@ -9,4 +9,14 @@
 
 **/Azure.Security.Tests/bin
 
+[Rr]eleases/
+x64/
+x86/
+bld/
+[Bb]in/
+[Oo]bj/
+[Ll]og/
+MigrationBackup/
 
+# Visual Studio 2015/2017 cache/options directory
+.vs/
