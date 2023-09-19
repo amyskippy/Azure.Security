@@ -1,20 +1,19 @@
 ﻿namespace Azure.Security
 {
+    using Data.Tables;
     using Interfaces;
-    using Microsoft.Azure.Cosmos.Table;
     using System;
     using System.Configuration;
     using System.IO;
 
     public class EncryptionHelper : IEncryptionHelper
     {
-        public CloudStorageAccount StorageAccount { get; set; } 
+        public TableServiceClient StorageAccount { get; set; } 
         public IRsaHelper RsaHelper { get; set; }
         public ISymmetricKeyTableManager KeyTableManager { get; set; }
         public ISymmetricKeyCache KeyCache { get; set; }
         public ICrypto AzureCrypto{ get; set; }
 
-        private readonly string _certificatePath;
         private readonly string _connectionString = ConfigurationManager.AppSettings["StorageConnectionString"];
         private readonly string _certificateValue = ConfigurationManager.AppSettings["CertificateValue"];
         private readonly string _certificateTable = ConfigurationManager.AppSettings["CertificateTable"];
@@ -27,9 +26,9 @@
 
         public EncryptionHelper(string pathToCertificate, Guid? userId)
         {
-            _certificatePath = Path.Combine(pathToCertificate,_certificateName);
-            StorageAccount = CloudStorageAccount.Parse(_connectionString);
-            RsaHelper = new RsaHelper(_certificatePath, _certificateValue);
+            var certificatePath = Path.Combine(pathToCertificate,_certificateName);
+            StorageAccount = new TableServiceClient(_connectionString);
+            RsaHelper = new RsaHelper(certificatePath, _certificateValue);
             KeyTableManager = new SymmetricKeyTableManager(_certificateTable, StorageAccount);
             
             //Ensure the table is in place before initializing the cryptoStore
