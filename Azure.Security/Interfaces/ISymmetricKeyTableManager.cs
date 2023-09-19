@@ -1,8 +1,7 @@
-﻿using System;
-
-namespace Azure.Security.Interfaces
+﻿namespace Azure.Security.Interfaces
 {
-    using Microsoft.Azure.Cosmos.Table;
+    using Data.Tables;
+    using System;
 
     public interface ISymmetricKeyTableManager
     {
@@ -12,7 +11,7 @@ namespace Azure.Security.Interfaces
 
         void AddSymmetricKey(SymmetricKey key);
 
-        CloudTable CreateTableIfNotExists();
+        TableClient CreateTableIfNotExists();
 
         void DeleteTableIfExists();
     }
