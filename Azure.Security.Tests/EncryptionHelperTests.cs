@@ -1,7 +1,7 @@
 ﻿namespace Azure.Security.Tests
 {
+    using Data.Tables;
     using FluentAssertions;
-    using Microsoft.Azure.Cosmos.Table;
     using Microsoft.VisualStudio.TestTools.UnitTesting;
     using Security;
     using System;
@@ -18,14 +18,14 @@
         private const string TestFileName = "TestTextFile.txt";
         private const string TestString = "This is a rendom test string";
         private const string TableName = "TestTableName";
-        private static readonly Guid TestUserId = new Guid("e6f41e92-a89f-47ab-b511-224260f3bb55");
-        private readonly CloudStorageAccount _acct = CloudStorageAccount.Parse("UseDevelopmentStorage=true");
+        private static readonly Guid TestUserId = new("e6f41e92-a89f-47ab-b511-224260f3bb55");
+        private readonly TableServiceClient _client = new("UseDevelopmentStorage=true");
 
         [TestInitialize]
         public void TestSetup()
         {
             _testFileDeploymentDirectory = TestContext.DeploymentDirectory;
-            var tableManager = new SymmetricKeyTableManager(TableName, _acct);
+            var tableManager = new SymmetricKeyTableManager(TableName, _client);
             tableManager.CreateTableIfNotExists();
         }
 

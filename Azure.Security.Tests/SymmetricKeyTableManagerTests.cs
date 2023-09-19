@@ -1,8 +1,8 @@
 ﻿namespace Azure.Security.Tests
 {
+    using Data.Tables;
     using Exceptions;
     using FluentAssertions;
-    using Microsoft.Azure.Cosmos.Table;
     using Microsoft.VisualStudio.TestTools.UnitTesting;
     using System;
     using System.IO;
@@ -13,8 +13,8 @@
     public class SymmetricKeyTableManagerTests
     {
         private const string TableName = "RandomTableName";
-        private static readonly Guid TestUserId = new Guid("e6f41e92-a89f-47ab-b511-224260f3bb55");
-        private readonly CloudStorageAccount _acct = CloudStorageAccount.Parse("UseDevelopmentStorage=true");
+        private static readonly Guid TestUserId = new("e6f41e92-a89f-47ab-b511-224260f3bb55");
+        private readonly TableServiceClient _client = new("UseDevelopmentStorage=true");
         private static RsaHelper _rsaHelper;
 
         public TestContext TestContext { get; set; }
@@ -29,23 +29,23 @@
         [TestCleanup]
         public void TestTearDown()
         {
-            var client = _acct.CreateCloudTableClient();
-            var table = client.GetTableReference(TableName);
-            table.DeleteIfExists();
+            if (_client.Exists(TableName))
+                _client.GetTableClient(TableName).Delete();
+
             MemoryCache.Default.Dispose();
         }
 
         [TestMethod]
         public void ConstructorShouldInitializeSuccessfully()
         {
-            var symmetricTableManager = new SymmetricKeyTableManager(TableName, _acct);
+            var symmetricTableManager = new SymmetricKeyTableManager(TableName, _client);
             symmetricTableManager.Should().NotBeNull("Initialization failed.");
         }
 
         [TestMethod]
         public void GetKeyShouldReturnNull()
         {
-            var symmetricTableManager = new SymmetricKeyTableManager(TableName, _acct);
+            var symmetricTableManager = new SymmetricKeyTableManager(TableName, _client);
             symmetricTableManager.CreateTableIfNotExists();
             var key = symmetricTableManager.GetKey(null);
 
@@ -55,7 +55,7 @@
         [TestMethod]
         public void GetKeyShouldThrowAnException()
         {
-            var symmetricTableManager = new SymmetricKeyTableManager(TableName, _acct);
+            var symmetricTableManager = new SymmetricKeyTableManager(TableName, _client);
 
             Action action = () => symmetricTableManager.GetKey(null);
             action.Should().Throw<AzureCryptoException>();
@@ -64,7 +64,7 @@
         [TestMethod]
         public void GetKeyShouldReturnOneKey()
         {
-            var symmetricTableManager = new SymmetricKeyTableManager(TableName, _acct);
+            var symmetricTableManager = new SymmetricKeyTableManager(TableName, _client);
             symmetricTableManager.CreateTableIfNotExists();
             var newKey = _rsaHelper.CreateNewAesSymmetricKeyset(null);
             symmetricTableManager.AddSymmetricKey(newKey);
@@ -77,7 +77,7 @@
         [TestMethod]
         public void GetKeyShouldReturnOneKeyWithUserId()
         {
-            var symmetricTableManager = new SymmetricKeyTableManager(TableName, _acct);
+            var symmetricTableManager = new SymmetricKeyTableManager(TableName, _client);
             symmetricTableManager.CreateTableIfNotExists();
             var newKey = _rsaHelper.CreateNewAesSymmetricKeyset(TestUserId);
             symmetricTableManager.AddSymmetricKey(newKey);
@@ -90,7 +90,7 @@
         [TestMethod]
         public void DeleteKeyShouldSucceed()
         {
-            var symmetricTableManager = new SymmetricKeyTableManager(TableName, _acct);
+            var symmetricTableManager = new SymmetricKeyTableManager(TableName, _client);
             symmetricTableManager.CreateTableIfNotExists();
             var newKey = _rsaHelper.CreateNewAesSymmetricKeyset(null);
             symmetricTableManager.AddSymmetricKey(newKey);
@@ -106,7 +106,7 @@
         [TestMethod]
         public void DeleteKeyShouldSucceedWithUserId()
         {
-            var symmetricTableManager = new SymmetricKeyTableManager(TableName, _acct);
+            var symmetricTableManager = new SymmetricKeyTableManager(TableName, _client);
             symmetricTableManager.CreateTableIfNotExists();
             var newKey = _rsaHelper.CreateNewAesSymmetricKeyset(TestUserId);
             symmetricTableManager.AddSymmetricKey(newKey);

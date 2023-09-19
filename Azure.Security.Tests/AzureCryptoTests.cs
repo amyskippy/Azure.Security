@@ -1,9 +1,9 @@
 ﻿namespace Azure.Security.Tests
 {
+    using Data.Tables;
     using Exceptions;
     using FluentAssertions;
     using Interfaces;
-    using Microsoft.Azure.Cosmos.Table;
     using Microsoft.VisualStudio.TestTools.UnitTesting;
     using Security;
     using System;
@@ -16,8 +16,8 @@
     {
         private const string TableName = "TestTableName";
         private const string TestString = "This is some test value";
-        private static readonly Guid TestUserId = new Guid("e6f41e92-a89f-47ab-b511-224260f3bb55");
-        private readonly CloudStorageAccount _acct = CloudStorageAccount.Parse("UseDevelopmentStorage=true");
+        private static readonly Guid TestUserId = new("e6f41e92-a89f-47ab-b511-224260f3bb55");
+        private readonly TableServiceClient _client = new("UseDevelopmentStorage=true");
         private static IRsaHelper _rsaHelper;
         private static ISymmetricKeyTableManager _tableManager;
 
@@ -28,7 +28,7 @@
         { 
             var deploymentDirectory = TestContext.DeploymentDirectory;
             _rsaHelper = new RsaHelper(Path.Combine(deploymentDirectory, "TestCertificate.pfx"), "test");
-            _tableManager = new SymmetricKeyTableManager(TableName,_acct);
+            _tableManager = new SymmetricKeyTableManager(TableName,_client);
             _tableManager.CreateTableIfNotExists();
         }
 

@@ -12,7 +12,7 @@
     {
         private const string TestString = "This is a random string for testing";
         private const string CertificatePassword = "test";
-        private static readonly Guid TestUserId = new Guid("e6f41e92-a89f-47ab-b511-224260f3bb55");
+        private static readonly Guid TestUserId = new("e6f41e92-a89f-47ab-b511-224260f3bb55");
 
         public TestContext TestContext { get; set; }
 
