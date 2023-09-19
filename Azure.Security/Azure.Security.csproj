@@ -38,7 +38,6 @@
 		<None Include="web.config.uninstall.xdt" />
 	</ItemGroup>
 	<ItemGroup>
-		<PackageReference Include="Azure.Storage.Blobs" Version="12.8.3" />
-		<PackageReference Include="Microsoft.Azure.Cosmos.Table" Version="1.0.8" />
+		<PackageReference Include="Azure.Storage.Blobs" Version="12.18.0" />
 	</ItemGroup>
 </Project>
