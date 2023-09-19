@@ -47,7 +47,7 @@
                     throw new Exception("Table not found");
 
                 // If we found the data
-                if (result.Value != null)
+                if (result.HasValue)
                     cachedKey = result.Value;
             }
             catch (RequestFailedException dsq)
