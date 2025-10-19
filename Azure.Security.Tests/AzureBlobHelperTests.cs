@@ -105,10 +105,17 @@
             var stream = helper.Get(blobId);
             stream.Should().NotBeNull("Failed to get memory stream from blob");
 
-            var deserializedObject = Serializer.DeserializeFromStream(stream);
+#if NET9_0
+            var deserializedObject = Serializer.DeserializeFromStream<string>(stream);
             deserializedObject.Should().NotBeNull("Object was created successfully");
             
+            TestString.Should().BeEquivalentTo(deserializedObject);
+#else
+            var deserializedObject = Serializer.DeserializeFromStream(stream);
+            deserializedObject.Should().NotBeNull("Object was created successfully");
+
             TestString.Should().BeEquivalentTo(deserializedObject.ToString());
+#endif
         }
     }
 }
