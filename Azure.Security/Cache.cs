@@ -1,10 +1,54 @@
 ﻿namespace Azure.Security
 {
     using System;
+
+#if NET9_0
+    using Microsoft.Extensions.Caching.Memory;
+#else
     using System.Runtime.Caching;
+#endif
 
     public class Cache
     {
+#if NET9_0
+        private readonly IMemoryCache _dataCache;
+
+        public Cache(IMemoryCache memoryCache)
+        {
+            _dataCache = memoryCache ?? throw new ArgumentNullException(nameof(memoryCache));
+        }
+
+        public void AddItem<T>(string key, T value)
+        {
+            var options = new MemoryCacheEntryOptions
+            {
+                SlidingExpiration = TimeSpan.FromHours(3)
+            };
+            _dataCache.Set(key, value, options);
+        }
+
+        public void AddItem<T>(string key, T value, int cacheMins)
+        {
+            var options = new MemoryCacheEntryOptions
+            {
+                AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(cacheMins)
+            };
+            _dataCache.Set(key, value, options);
+        }
+
+        public T? GetItem<T>(string key)
+        {
+            // TryGetValue is a safer way to get items in the modern API.
+            _dataCache.TryGetValue(key, out T? value);
+            return value;
+        }
+
+        public void RemoveItem(string key)
+        {
+            _dataCache.Remove(key);
+        }
+
+#else
         public static Cache Current => new Cache();
 
         // Cache
@@ -71,5 +115,6 @@
             // Try to remove the object from the cache;
             _dataCache.Remove(key);
         }
+#endif
     }
 }

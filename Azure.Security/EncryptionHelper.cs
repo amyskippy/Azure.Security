@@ -3,8 +3,13 @@
     using Data.Tables;
     using Interfaces;
     using System;
-    using System.Configuration;
     using System.IO;
+
+#if NET9_0
+    using Microsoft.Extensions.Options;
+#else
+    using System.Configuration;
+#endif
 
     public class EncryptionHelper : IEncryptionHelper
     {
@@ -14,32 +19,44 @@
         public ISymmetricKeyCache KeyCache { get; set; }
         public ICrypto AzureCrypto{ get; set; }
 
-        private readonly string _connectionString = ConfigurationManager.AppSettings["StorageConnectionString"];
-        private readonly string _certificateValue = ConfigurationManager.AppSettings["CertificateValue"];
-        private readonly string _certificateTable = ConfigurationManager.AppSettings["CertificateTable"];
-        private readonly string _certificateName = ConfigurationManager.AppSettings["CertificateName"];
-
-        public EncryptionHelper(string pathToCertificate) : this(pathToCertificate, null)
+#if NET9_0
+        // --- .NET 9 Constructors ---
+        public EncryptionHelper(IOptions<EncryptionSettings> settings, Cache cache, string pathToCertificate)
+            : this(settings, cache, pathToCertificate, null)
         {
-            
         }
 
-        public EncryptionHelper(string pathToCertificate, Guid? userId)
+        public EncryptionHelper(IOptions<EncryptionSettings> settings, Cache cache, string pathToCertificate, Guid? userId)
         {
-            var certificatePath = Path.Combine(pathToCertificate,_certificateName);
-            StorageAccount = new TableServiceClient(_connectionString);
-            RsaHelper = new RsaHelper(certificatePath, _certificateValue);
-            KeyTableManager = new SymmetricKeyTableManager(_certificateTable, StorageAccount);
-            
-            //Ensure the table is in place before initializing the cryptoStore
-            //CreateCertificateTableIfNotExists();
-            //Create the master key if it doesn't exist
-            CreateNewCryptoKeyIfNotExists(userId);
+            var config = settings.Value;
 
-            KeyCache = new SymmetricKeyCache(RsaHelper, KeyTableManager, userId);
-            AzureCrypto = new AzureCrypto(KeyCache);
+            StorageAccount = new TableServiceClient(config.StorageConnectionString);
+            KeyTableManager = new SymmetricKeyTableManager(cache, config.CertificateTable, StorageAccount);
+
+            Initialize(config.CertificateValue, config.CertificateTable, config.CertificateName, pathToCertificate, userId);
         }
+#else
+    // --- .NET Framework Constructors ---
+    public EncryptionHelper(string pathToCertificate) 
+        : this(pathToCertificate, null)
+    {
+    }
 
+    public EncryptionHelper(string pathToCertificate, Guid? userId)
+    {
+        // Get settings from the legacy ConfigurationManager
+        var connectionString = ConfigurationManager.AppSettings["StorageConnectionString"];
+        var certificateValue = ConfigurationManager.AppSettings["CertificateValue"];
+        var certificateTable = ConfigurationManager.AppSettings["CertificateTable"];
+        var certificateName = ConfigurationManager.AppSettings["CertificateName"];
+        
+        StorageAccount = new TableServiceClient(connectionString);
+        KeyTableManager = new SymmetricKeyTableManager(certificateTable, StorageAccount);
+        
+        Initialize(certificateValue, certificateTable, certificateName, pathToCertificate, userId);
+    }
+#endif
+        
         public void CreateNewCryptoKeyIfNotExists()
         {
             CreateNewCryptoKeyIfNotExists(null);
@@ -109,6 +126,18 @@
         {
             KeyTableManager.CreateTableIfNotExists();
         }
-        
+
+        private void Initialize(string certificateValue, string certificateTable, string certificateName, string pathToCertificate, Guid? userId)
+        {
+            var certificatePath = Path.Combine(pathToCertificate, certificateName);
+            RsaHelper = new RsaHelper(certificatePath, certificateValue);
+
+            // Create the master key if it doesn't exist
+            CreateNewCryptoKeyIfNotExists(userId);
+
+            KeyCache = new SymmetricKeyCache(RsaHelper, KeyTableManager, userId);
+            AzureCrypto = new AzureCrypto(KeyCache);
+        }
+
     }
 }

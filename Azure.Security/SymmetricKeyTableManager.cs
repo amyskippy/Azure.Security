@@ -10,11 +10,22 @@
         private static string _keyTableName;
         private readonly TableServiceClient _tableClient;
 
-        // Cache helper
-        private static readonly Cache Cache = Cache.Current;
-
-        public SymmetricKeyTableManager(string tableName, TableServiceClient storageAccount)
+#if NET9_0
+        private readonly Cache _cache;
+#else
+        private static readonly Cache _cache = Cache.Current;
+#endif
+        
+        public SymmetricKeyTableManager(
+#if NET9_0
+            Cache cache,
+#endif
+            string tableName, 
+            TableServiceClient storageAccount)
         {
+#if NET9_0
+            _cache = cache;
+#endif
             _keyTableName = tableName;
             _tableClient = storageAccount;
         }
@@ -25,7 +36,7 @@
             var itemKey = $"tablekeymanager/key/{userId?.ToString() ?? "none"}";
 
             // Try to get the item from the cache
-            var cachedKey = Cache.GetItem<SymmetricKey>(itemKey);
+            var cachedKey = _cache.GetItem<SymmetricKey>(itemKey);
 
             // If the data was found in the cache, return it
             if (cachedKey != null)
@@ -61,7 +72,7 @@
             
             // Add the data to the cache for 3 hours if it was found
             if (cachedKey != null)
-                Cache.AddItem(itemKey, cachedKey);
+                _cache.AddItem(itemKey, cachedKey);
 
             return cachedKey;
         }
@@ -72,7 +83,7 @@
             
             cloudTable.DeleteEntity(key.PartitionKey, key.RowKey);
 
-            Cache.RemoveItem($"tablekeymanager/key/{key.UserId?.ToString() ?? "none"}");
+            _cache.RemoveItem($"tablekeymanager/key/{key.UserId?.ToString() ?? "none"}");
         }
 
         public void AddSymmetricKey(SymmetricKey key)
