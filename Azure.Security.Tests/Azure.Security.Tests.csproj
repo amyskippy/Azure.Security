@@ -1,12 +1,9 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 	<PropertyGroup>
-		<TargetFramework>net481</TargetFramework>
-		<PlatformTarget>AnyCPU</PlatformTarget>
+    <TargetFrameworks>net481;net9.0</TargetFrameworks>
 		<LangVersion>latest</LangVersion>
 		<Nullable>disable</Nullable>
-		<ProjectGuid>{A0769C71-65E0-43DA-AE7D-9879E315EC92}</ProjectGuid>
-		<GenerateAssemblyInfo>false</GenerateAssemblyInfo>
-		<GenerateTargetFrameworkAttribute>false</GenerateTargetFrameworkAttribute>
+
 	</PropertyGroup>
 	<PropertyGroup Condition="$(Configuration.Contains('Debug'))">
 		<DefineConstants>DEBUG;TRACE</DefineConstants>
@@ -14,22 +11,33 @@
 		<DebugType>full</DebugType>
 		<Optimize>false</Optimize>
 	</PropertyGroup>
+
 	<PropertyGroup Condition="$(Configuration.Contains('Release'))">
 		<DefineConstants>TRACE</DefineConstants>
 		<DebugSymbols>false</DebugSymbols>
 		<DebugType>pdbonly</DebugType>
 		<Optimize>true</Optimize>
 	</PropertyGroup>
+
 	<ItemGroup>
-		<Reference Include="System" />
-		<Reference Include="System.Core" />
-		<Reference Include="System.Runtime.Caching" />
-		<Reference Include="System.Xml.Linq" />
-		<Reference Include="System.Data.DataSetExtensions" />
-		<Reference Include="Microsoft.CSharp" />
-		<Reference Include="System.Data" />
-		<Reference Include="System.Xml" />
-	</ItemGroup>
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.10.0" />
+    <PackageReference Include="Azure.Data.Tables" Version="12.8.1" />
+    <PackageReference Include="Azure.Storage.Blobs" Version="12.18.0" />
+    <PackageReference Include="FluentAssertions" Version="6.12.0" />
+    <PackageReference Include="MSTest.TestAdapter" Version="3.1.1" />
+    <PackageReference Include="MSTest.TestFramework" Version="3.1.1" />
+  </ItemGroup>
+
+  <ItemGroup Condition="'$(TargetFramework)' == 'net9.0'">
+    <PackageReference Include="Microsoft.Extensions.Configuration" Version="9.0.10" />
+    <PackageReference Include="System.Diagnostics.DiagnosticSource" Version="9.0.10" />
+  </ItemGroup>
+
+  <ItemGroup Condition="'$(TargetFramework)' == 'net481'">
+    <Reference Include="System.Runtime.Caching" />
+    <PackageReference Include="System.Diagnostics.DiagnosticSource" Version="7.0.2" />
+  </ItemGroup>
+
 	<ItemGroup>
 		<Content Include="TestFiles\TestCertificate.pfx">
 			<CopyToOutputDirectory>Always</CopyToOutputDirectory>
@@ -38,24 +46,24 @@
 			<CopyToOutputDirectory>Always</CopyToOutputDirectory>
 		</Content>
 	</ItemGroup>
+
 	<ItemGroup>
 		<None Include="App.config" />
 	</ItemGroup>
+
 	<ItemGroup>
 		<Service Include="{82A7F48D-3B50-4B1E-B82E-3ADA8210C358}" />
 	</ItemGroup>
+
 	<ItemGroup>
 		<ProjectReference Include="..\Azure.Security\Azure.Security.csproj">
 			<Project>{293df190-532c-4996-876d-adaafbb7942c}</Project>
 			<Name>Azure.Security</Name>
 		</ProjectReference>
 	</ItemGroup>
+
 	<ItemGroup>
-		<PackageReference Include="Azure.Data.Tables" Version="12.8.1" />
-		<PackageReference Include="Azure.Storage.Blobs" Version="12.18.0" />
-		<PackageReference Include="FluentAssertions" Version="6.12.0" />
-		<PackageReference Include="MSTest.TestAdapter" Version="3.1.1" />
-		<PackageReference Include="MSTest.TestFramework" Version="3.1.1" />
-		<PackageReference Include="System.Diagnostics.DiagnosticSource" Version="7.0.2" />
+	  <Folder Include="Properties\" />
 	</ItemGroup>
+
 </Project>

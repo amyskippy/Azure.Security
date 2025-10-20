@@ -36,14 +36,34 @@
 
         public byte[] RsaEncryptBytes(byte[] binaryData)
         {
+#if NET9_0
+            using RSA rsa = _x509.GetRSAPublicKey();
+            if (rsa == null)
+            {
+                throw new InvalidOperationException("Certificate does not contain an RSA public key.");
+            }
+
+            return rsa.Encrypt(binaryData, RSAEncryptionPadding.Pkcs1);
+#else
             var rsa = (RSACryptoServiceProvider) _x509.PublicKey.Key;
             return rsa.Encrypt(binaryData, false);
+#endif
         }
 
         public byte[] RsaDecryptToBytes(byte[] dataToDecrypt)
         {
+#if NET9_0
+            using RSA rsa = _x509.GetRSAPrivateKey();
+            if (rsa == null)
+            {
+                throw new InvalidOperationException("Certificate does not contain an RSA private key.");
+            }
+
+            return rsa.Decrypt(dataToDecrypt, RSAEncryptionPadding.Pkcs1);
+#else
             var rsa = (RSACryptoServiceProvider) _x509.PrivateKey;
             return rsa.Decrypt(dataToDecrypt, false);
+#endif
         }
 
         public string RsaDecryptToString(byte[] dataToDecrypt)

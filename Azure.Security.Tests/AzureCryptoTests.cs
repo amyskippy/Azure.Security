@@ -8,7 +8,12 @@
     using Security;
     using System;
     using System.IO;
+
+#if NET9_0
+    using Microsoft.Extensions.Caching.Memory;
+#else
     using System.Runtime.Caching;
+#endif
 
     [TestClass]
     [DeploymentItem(@"TestFiles\TestCertificate.pfx")]
@@ -21,14 +26,25 @@
         private static IRsaHelper _rsaHelper;
         private static ISymmetricKeyTableManager _tableManager;
 
+#if NET9_0
+        private IMemoryCache _memoryCache = new MemoryCache(new MemoryCacheOptions());
+#endif
+
         public TestContext TestContext { get; set; }
 
         [TestInitialize]
         public void TestSetup()
-        { 
+        {
+
+#if NET9_0
+            Cache cache = new Cache(_memoryCache);
+            _tableManager = new SymmetricKeyTableManager(cache, TableName, _client);
+#else
+            _tableManager = new SymmetricKeyTableManager(TableName, _client);
+#endif
+
             var deploymentDirectory = TestContext.DeploymentDirectory;
             _rsaHelper = new RsaHelper(Path.Combine(deploymentDirectory, "TestCertificate.pfx"), "test");
-            _tableManager = new SymmetricKeyTableManager(TableName,_client);
             _tableManager.CreateTableIfNotExists();
         }
 
@@ -36,7 +52,12 @@
         public void TestTearDown()
         {
             _tableManager.DeleteTableIfExists();
+
+#if NET9_0
+            _memoryCache.Dispose();
+#else
             MemoryCache.Default.Dispose();
+#endif
         }
 
         [TestMethod]
