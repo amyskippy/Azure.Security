@@ -40,6 +40,9 @@ public class SymmetricKeyTableManagerTests
     {
         if (_client.Exists(TableName))
             _client.GetTableClient(TableName).Delete();
+
+        _memoryCache.Remove($"tablekeymanager/key/{TestUserId.ToString()}");
+        _memoryCache.Remove($"tablekeymanager/key/none");
     }
 
     [Test]
