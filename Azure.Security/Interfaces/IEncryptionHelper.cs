@@ -1,27 +1,16 @@
-﻿namespace Azure.Security.Interfaces
+﻿using System;
+
+namespace Azure.Security.Interfaces;
+
+public interface IEncryptionHelper
 {
-    using System;
+    void CreateNewCryptoKeyIfNotExists(Guid? userId = null);
 
-    public interface IEncryptionHelper
-    {
-        void CreateNewCryptoKeyIfNotExists();
+    byte[] EncryptBytes(byte[] bytesToEncrypt, Guid? userId = null, bool createIfNotExists = true);
 
-        void CreateNewCryptoKeyIfNotExists(Guid? userId);
+    byte[] DecryptBytes(byte[] bytesToDecrypt, Guid? userId = null);
 
-        byte[] EncryptBytes(byte[] bytesToEncrypt);
+    string EncryptAndBase64(string valueToEncrypt, Guid? userId = null, bool createIfNotExists = true);
 
-        byte[] EncryptBytes(byte[] bytesToEncrypt, Guid? userId, bool createIfNotExists);
-
-        byte[] DecryptBytes(byte[] bytesToDecrypt);
-
-        byte[] DecryptBytes(byte[] bytesToDecrypt, Guid? userId);
-
-        string EncryptAndBase64(string valueToEncrypt);
-
-        string EncryptAndBase64(string valueToEncrypt, Guid? userId, bool createIfNotExists);
-
-        string DecryptFromBase64(string valueToDecrypt);
-
-        string DecryptFromBase64(string valueToDecrypt, Guid? userId);
-    }
+    string DecryptFromBase64(string valueToDecrypt, Guid? userId = null);
 }

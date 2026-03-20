@@ -1,18 +1,19 @@
-﻿namespace Azure.Security.Interfaces
+﻿namespace Azure.Security.Interfaces;
+
+using System;
+using Data.Tables;
+
+public interface ISymmetricKeyTableManager
 {
-    using Data.Tables;
-    using System;
+    bool KeyExists(Guid? userId);
 
-    public interface ISymmetricKeyTableManager
-    {
-        SymmetricKey GetKey(Guid? userId);
+    SymmetricKey? GetKey(Guid? userId);
 
-        void DeleteSymmetricKey(SymmetricKey key);
+    void DeleteSymmetricKey(SymmetricKey key);
 
-        void AddSymmetricKey(SymmetricKey key);
+    void AddSymmetricKey(SymmetricKey key);
 
-        TableClient CreateTableIfNotExists();
+    TableClient CreateTableIfNotExists();
 
-        void DeleteTableIfExists();
-    }
+    void DeleteTableIfExists();
 }

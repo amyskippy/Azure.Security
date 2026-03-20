@@ -1,25 +1,40 @@
-﻿namespace Azure.Security.Interfaces
+﻿using System.Collections.Generic;
+using System.IO;
+using System.Threading;
+using System.Threading.Tasks;
+using Azure.Storage.Blobs;
+
+namespace Azure.Security.Interfaces;
+
+public interface IBlobHelper
 {
-    using Azure.Storage.Blobs;
-    using System.Collections.Generic;
-    using System.IO;
+    bool DeleteBlobContainer(string? toDelete = null);
+    Task<bool> DeleteBlobContainerAsync(string? toDelete = null, CancellationToken cancellationToken = default);
 
-    public interface IBlobHelper
-    {
-        void DeleteBlobContainer(string toDelete = null);
+    bool Delete(string blobId);
+    Task<bool> DeleteAsync(string blobId, CancellationToken cancellationToken = default);
 
-        void Delete(string blobId);
+    bool CreateOrUpdate(string blobId, MemoryStream contentStream);
 
-        void CreateOrUpdate(string blobId, MemoryStream contentStream);
+    Task<bool> CreateOrUpdateAsync(string blobId, MemoryStream contentStream, CancellationToken cancellationToken = default);
 
-        void CreateOrUpdate(string blobId, Stream contentStream);
+    bool CreateOrUpdate(string blobId, Stream contentStream);
 
-        BlobClient CreateOrUpdate(string blobId, Stream contentStream, string contentType);
+    Task<bool> CreateOrUpdateAsync(string blobId, Stream contentStream, CancellationToken cancellationToken = default);
 
-        MemoryStream Get(string blobId);
+    BlobClient CreateOrUpdate(string blobId, Stream contentStream, string contentType);
 
-        IEnumerable<BlobClient> GetBlobItemsByDirectory(string directoryName);
+    Task<BlobClient> CreateOrUpdateAsync(string blobId, Stream contentStream, string contentType, CancellationToken cancellationToken = default);
 
-        bool Exists(string blobId);
-    }
+    Stream Get(string blobId);
+
+    Task<Stream> GetAsync(string blobId, CancellationToken cancellationToken = default);
+
+    IEnumerable<BlobClient> GetBlobItemsByDirectory(string directoryName);
+
+    IAsyncEnumerable<BlobClient> GetBlobItemsByDirectoryAsync(string directoryName, CancellationToken cancellationToken = default);
+
+    bool Exists(string blobId, string? directoryName = null);
+
+    Task<bool> ExistsAsync(string blobId, string? directoryName = null, CancellationToken cancellationToken = default);
 }

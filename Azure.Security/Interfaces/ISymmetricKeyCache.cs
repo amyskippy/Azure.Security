@@ -1,16 +1,11 @@
-﻿namespace Azure.Security.Interfaces
+﻿using System;
+using System.Security.Cryptography;
+
+namespace Azure.Security.Interfaces;
+
+public interface ISymmetricKeyCache
 {
-    using System;
-    using System.Security.Cryptography;
+    ICryptoTransform GetDecryptor(Guid? userId = null);
 
-    public interface ISymmetricKeyCache
-    {
-        ICryptoTransform GetDecryptor();
-
-        ICryptoTransform GetDecryptor(Guid? userId);
-
-        ICryptoTransform GetEncryptor();
-
-        ICryptoTransform GetEncryptor(Guid? userId);
-    }
+    ICryptoTransform GetEncryptor(Guid? userId = null);
 }
