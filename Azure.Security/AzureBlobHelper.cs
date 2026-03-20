@@ -145,7 +145,7 @@ public class AzureBlobHelper : IBlobHelper
         if (!directoryName.EndsWith('/'))
             directoryName += "/";
 
-        var blobs = _blobContainerClient.GetBlobs(prefix: directoryName);
+        var blobs = _blobContainerClient.GetBlobs(options: new GetBlobsOptions { Prefix = directoryName });
         
         return blobs.Select(blob => _blobContainerClient.GetBlobClient(blob.Name));
     }
@@ -155,7 +155,7 @@ public class AzureBlobHelper : IBlobHelper
         if (!directoryName.EndsWith('/'))
             directoryName += "/";
 
-        await foreach (var blob in _blobContainerClient.GetBlobsAsync(prefix: directoryName, cancellationToken: cancellationToken).ConfigureAwait(false))
+        await foreach (var blob in _blobContainerClient.GetBlobsAsync(options: new GetBlobsOptions { Prefix = directoryName }, cancellationToken: cancellationToken).ConfigureAwait(false))
         {
             yield return _blobContainerClient.GetBlobClient(blob.Name);
         }
@@ -163,12 +163,12 @@ public class AzureBlobHelper : IBlobHelper
 
     public bool Exists(string blobId, string? directoryName = null)
     {
-        return _blobContainerClient.GetBlobs(prefix: directoryName).Any(blob => blob.Name.Contains(blobId));
+        return _blobContainerClient.GetBlobs(options: new GetBlobsOptions { Prefix = directoryName }).Any(blob => blob.Name.Contains(blobId));
     }
 
     public async Task<bool> ExistsAsync(string blobId, string? directoryName = null, CancellationToken cancellationToken = default)
     {
-        await foreach (var blob in _blobContainerClient.GetBlobsAsync(prefix: directoryName, cancellationToken: cancellationToken).ConfigureAwait(false))
+        await foreach (var blob in _blobContainerClient.GetBlobsAsync(options: new GetBlobsOptions { Prefix = directoryName }, cancellationToken: cancellationToken).ConfigureAwait(false))
         {
             if (blob.Name.Contains(blobId))
                 return true;
