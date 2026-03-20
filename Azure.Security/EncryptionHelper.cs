@@ -1,143 +1,86 @@
-﻿namespace Azure.Security
+﻿using System;
+using System.IO;
+using System.Security.Cryptography.X509Certificates;
+using Azure.Data.Tables;
+using Azure.Security.Interfaces;
+using Microsoft.Extensions.Caching.Memory;
+using Microsoft.Extensions.Options;
+
+namespace Azure.Security;
+
+public class EncryptionHelper : IEncryptionHelper
 {
-    using Data.Tables;
-    using Interfaces;
-    using System;
-    using System.IO;
+    public TableServiceClient StorageAccount { get; set; }
+    public IRsaHelper RsaHelper { get; set; }
+    public ISymmetricKeyTableManager KeyTableManager { get; set; }
+    public ISymmetricKeyCache KeyCache { get; set; }
+    public ICrypto AzureCrypto { get; set; }
 
-#if NET9_0
-    using Microsoft.Extensions.Options;
-#else
-    using System.Configuration;
-#endif
-
-    public class EncryptionHelper : IEncryptionHelper
+    public EncryptionHelper(
+        IOptions<EncryptionSettings> settings,
+        IMemoryCache cache,
+        string pathToCertificate,
+        Guid? userId = null,
+        X509KeyStorageFlags keyStorageFlags = X509KeyStorageFlags.DefaultKeySet)
     {
-        public TableServiceClient StorageAccount { get; set; } 
-        public IRsaHelper RsaHelper { get; set; }
-        public ISymmetricKeyTableManager KeyTableManager { get; set; }
-        public ISymmetricKeyCache KeyCache { get; set; }
-        public ICrypto AzureCrypto{ get; set; }
+        var config = settings.Value;
 
-#if NET9_0
-        // --- .NET 9 Constructors ---
-        public EncryptionHelper(IOptions<EncryptionSettings> settings, Cache cache, string pathToCertificate)
-            : this(settings, cache, pathToCertificate, null)
-        {
-        }
+        if (config.CertificateName is null)
+            throw new ArgumentNullException(nameof(settings), "The certificate name is required");
+        if (config.CertificateTable is null)
+            throw new ArgumentNullException(nameof(settings), "The certificate table is required");
+        if (config.CertificateValue is null)
+            throw new ArgumentNullException(nameof(settings), "The certificate value is required");
+        if (config.StorageConnectionString is null)
+            throw new ArgumentNullException(nameof(settings), "The storage connection string is required");
 
-        public EncryptionHelper(IOptions<EncryptionSettings> settings, Cache cache, string pathToCertificate, Guid? userId)
-        {
-            var config = settings.Value;
+        StorageAccount = new TableServiceClient(config.StorageConnectionString);
+        KeyTableManager = new SymmetricKeyTableManager(cache, config.CertificateTable, StorageAccount);
 
-            StorageAccount = new TableServiceClient(config.StorageConnectionString);
-            KeyTableManager = new SymmetricKeyTableManager(cache, config.CertificateTable, StorageAccount);
+        var certificatePath = Path.Combine(pathToCertificate, config.CertificateName);
+        RsaHelper = new RsaHelper(certificatePath, config.CertificateValue, X509KeyStorageFlags.EphemeralKeySet);
 
-            Initialize(config.CertificateValue, config.CertificateTable, config.CertificateName, pathToCertificate, userId);
-        }
-#else
-    // --- .NET Framework Constructors ---
-    public EncryptionHelper(string pathToCertificate) 
-        : this(pathToCertificate, null)
-    {
+        // Create the master key if it doesn't exist
+        CreateNewCryptoKeyIfNotExists(userId);
+
+        KeyCache = new SymmetricKeyCache(RsaHelper, KeyTableManager, userId);
+        AzureCrypto = new AzureCrypto(KeyCache);
     }
 
-    public EncryptionHelper(string pathToCertificate, Guid? userId)
+    public void CreateNewCryptoKeyIfNotExists(Guid? userId = null)
     {
-        // Get settings from the legacy ConfigurationManager
-        var connectionString = ConfigurationManager.AppSettings["StorageConnectionString"];
-        var certificateValue = ConfigurationManager.AppSettings["CertificateValue"];
-        var certificateTable = ConfigurationManager.AppSettings["CertificateTable"];
-        var certificateName = ConfigurationManager.AppSettings["CertificateName"];
-        
-        StorageAccount = new TableServiceClient(connectionString);
-        KeyTableManager = new SymmetricKeyTableManager(certificateTable, StorageAccount);
-        
-        Initialize(certificateValue, certificateTable, certificateName, pathToCertificate, userId);
+        if (KeyTableManager.KeyExists(userId))
+            return;
+
+        var newKey = RsaHelper.CreateNewAesSymmetricKeyset(userId);
+        KeyTableManager.AddSymmetricKey(newKey);
     }
-#endif
-        
-        public void CreateNewCryptoKeyIfNotExists()
-        {
-            CreateNewCryptoKeyIfNotExists(null);
-        }
 
-        public void CreateNewCryptoKeyIfNotExists(Guid? userId)
-        {
-            var key = KeyTableManager.GetKey(userId);
-            if (key != null)
-            {
-                return;
-            }
-
-            var newKey = RsaHelper.CreateNewAesSymmetricKeyset(userId);
-            KeyTableManager.AddSymmetricKey(newKey);
-        }
-
-        public byte[] EncryptBytes(byte[] bytesToEncrypt)
-        {
-            return EncryptBytes(bytesToEncrypt, null);
-        }
-
-        public byte[] EncryptBytes(byte[] bytesToEncrypt, Guid? userId, bool createIfNotExists = true)
-        {
-            // Create the master key if it doesn't exist, if required
-            if(createIfNotExists)
-                CreateNewCryptoKeyIfNotExists(userId);
-
-            return AzureCrypto.Encrypt(bytesToEncrypt, userId);
-        }
-
-        public byte[] DecryptBytes(byte[] bytesToDecrypt)
-        {
-            return DecryptBytes(bytesToDecrypt, null);
-        }
-
-        public byte[] DecryptBytes(byte[] bytesToDecrypt, Guid? userId)
-        {
-            return AzureCrypto.Decrypt(bytesToDecrypt, userId);
-        }
-
-        public string EncryptAndBase64(string valueToEncrypt)
-        {
-            return EncryptAndBase64(valueToEncrypt, null);
-        }
-
-        public string EncryptAndBase64(string valueToEncrypt, Guid? userId, bool createIfNotExists = true)
-        {
-            // Create the master key if it doesn't exist, if required
-            if (createIfNotExists)
-                CreateNewCryptoKeyIfNotExists(userId);
-
-            return AzureCrypto.EncryptStringAndBase64(valueToEncrypt, userId);
-        }
-
-        public string DecryptFromBase64(string valueToDecrypt)
-        {
-            return DecryptFromBase64(valueToDecrypt, null);
-        }
-
-        public string DecryptFromBase64(string valueToDecrypt, Guid? userId)
-        {
-            return AzureCrypto.DecryptStringFromBase64(valueToDecrypt, userId);
-        }
-
-        private void CreateCertificateTableIfNotExists()
-        {
-            KeyTableManager.CreateTableIfNotExists();
-        }
-
-        private void Initialize(string certificateValue, string certificateTable, string certificateName, string pathToCertificate, Guid? userId)
-        {
-            var certificatePath = Path.Combine(pathToCertificate, certificateName);
-            RsaHelper = new RsaHelper(certificatePath, certificateValue);
-
-            // Create the master key if it doesn't exist
+    public byte[] EncryptBytes(byte[] bytesToEncrypt, Guid? userId = null, bool createIfNotExists = true)
+    {
+        // Create the master key if it doesn't exist, if required
+        if (createIfNotExists)
             CreateNewCryptoKeyIfNotExists(userId);
 
-            KeyCache = new SymmetricKeyCache(RsaHelper, KeyTableManager, userId);
-            AzureCrypto = new AzureCrypto(KeyCache);
-        }
+        return AzureCrypto.Encrypt(bytesToEncrypt, userId);
+    }
 
+    public byte[] DecryptBytes(byte[] bytesToDecrypt, Guid? userId = null)
+    {
+        return AzureCrypto.Decrypt(bytesToDecrypt, userId);
+    }
+
+    public string EncryptAndBase64(string valueToEncrypt, Guid? userId = null, bool createIfNotExists = true)
+    {
+        // Create the master key if it doesn't exist, if required
+        if (createIfNotExists)
+            CreateNewCryptoKeyIfNotExists(userId);
+
+        return AzureCrypto.EncryptStringAndBase64(valueToEncrypt, userId);
+    }
+
+    public string DecryptFromBase64(string valueToDecrypt, Guid? userId = null)
+    {
+        return AzureCrypto.DecryptStringFromBase64(valueToDecrypt, userId);
     }
 }

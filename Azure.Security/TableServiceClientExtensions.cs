@@ -1,28 +1,23 @@
-﻿namespace Azure.Security
+﻿using System.Linq;
+using System.Threading.Tasks;
+using Azure.Data.Tables;
+
+namespace Azure.Security;
+
+public static class TableServiceClientExtensions
 {
-    using Data.Tables;
-    using System.Threading.Tasks;
-
-    public static class TableServiceClientExtensions
+    public static bool Exists(this TableServiceClient client, string tableName)
     {
-        public static bool Exists(this TableServiceClient client, string tableName)
+        return client.Query(t => t.Name == tableName).Any();
+    }
+
+    public static async Task<bool> ExistsAsync(this TableServiceClient client, string tableName)
+    {
+        await foreach (var _ in client.QueryAsync(t => t.Name == tableName))
         {
-            var exists = false;
-            foreach (var tbl in client.Query(t => t.Name == tableName))
-            {
-                exists = true;
-            }
-            return exists;
+            return true;
         }
 
-        public static async Task<bool> ExistsAsync(this TableServiceClient client, string tableName)
-        {
-            var exists = false;
-            await foreach (var tbl in client.QueryAsync(t => t.Name == tableName))
-            {
-                exists = true;
-            }
-            return exists;
-        }
+        return false;
     }
 }

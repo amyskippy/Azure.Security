@@ -1,12 +1,11 @@
-﻿namespace Azure.Security
+﻿using System;
+using System.Security.Cryptography;
+
+namespace Azure.Security;
+
+public class SymmetricAlgorithmItem
 {
-    using System;
-    using System.Security.Cryptography;
+    public required SymmetricAlgorithm Algorithm { get; set; }
 
-    public class SymmetricAlgorithmItem
-    {
-        public SymmetricAlgorithm Algorithm { get; set; }
-
-        public Guid? UserId { get; set; }
-    }
+    public Guid? UserId { get; set; }
 }
