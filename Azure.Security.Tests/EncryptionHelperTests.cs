@@ -1,191 +1,178 @@
-﻿namespace Azure.Security.Tests
+﻿using System;
+using System.IO;
+using Azure.Data.Tables;
+using FluentAssertions;
+using Microsoft.Extensions.Caching.Memory;
+using Microsoft.Extensions.Options;
+using NUnit.Framework;
+
+namespace Azure.Security.Tests;
+
+[TestFixture]
+public class EncryptionHelperTests
 {
-    using Data.Tables;
-    using FluentAssertions;
-    using Microsoft.VisualStudio.TestTools.UnitTesting;
-    using Security;
-    using System;
-    using System.IO;
+    private static string _testFileDeploymentDirectory = null!;
+    private const string TestFileName = "TestTextFile.txt";
+    private const string TestString = "This is a rendom test string";
+    private const string TableName = "TestTableName";
+    private static readonly Guid TestUserId = new("e6f41e92-a89f-47ab-b511-224260f3bb55");
+    private readonly TableServiceClient _client = new("UseDevelopmentStorage=true");
+    private readonly IMemoryCache _memoryCache = new MemoryCache(new MemoryCacheOptions());
+    //private SymmetricKeyTableManager _tableManager = null!;
 
-#if NET9_0
-    using Microsoft.Extensions.Caching.Memory;
-    using Microsoft.Extensions.Options;
-#else
-    using System.Runtime.Caching;
-#endif
+    private readonly IOptions<EncryptionSettings> _encryptionSettings = Options.Create(
+        new EncryptionSettings
+        {
+            CertificateName = "TestCertificate.pfx",
+            CertificateTable = "TestTableName",
+            StorageConnectionString = "UseDevelopmentStorage=true",
+            CertificateValue = "test"
+        });
 
-
-    [TestClass]
-    [DeploymentItem(@"TestFiles\TestCertificate.pfx")]
-    [DeploymentItem(@"TestFiles\TestTextFile.txt")]
-    public class EncryptionHelperTests
+    [OneTimeSetUp]
+    public void TestFixtureSetup()
     {
-        public TestContext TestContext { get; set; }
-        private static string _testFileDeploymentDirectory;
-        private const string TestFileName = "TestTextFile.txt";
-        private const string TestString = "This is a rendom test string";
-        private const string TableName = "TestTableName";
-        private static readonly Guid TestUserId = new("e6f41e92-a89f-47ab-b511-224260f3bb55");
-        
-        private readonly TableServiceClient _client = new("UseDevelopmentStorage=true");
+        _testFileDeploymentDirectory = Path.Combine(TestContext.CurrentContext.TestDirectory, "TestFiles");
 
-#if NET9_0
-        private Cache _cache;
-        private readonly IOptions<EncryptionSettings> _encryptionSettings = Options.Create(
-            new EncryptionSettings
-            {
-                CertificateName = "TestCertificate.pfx",
-                CertificateTable = "TestTableName",
-                StorageConnectionString = "UseDevelopmentStorage=true",
-                CertificateValue = "test"
-            });
-#endif
+        //_tableManager = new SymmetricKeyTableManager(_memoryCache, TableName, _client);
+    }
 
-        [TestInitialize]
-        public void TestSetup()
-        {
-            _testFileDeploymentDirectory = TestContext.DeploymentDirectory;
-            
-#if NET9_0
-            _cache = new Cache(new MemoryCache(new MemoryCacheOptions()));
-            var tableManager = new SymmetricKeyTableManager(_cache, TableName, _client);
-#else
-            var tableManager = new SymmetricKeyTableManager(TableName, _client);
-#endif
-            tableManager.CreateTableIfNotExists();
-        }
+    [OneTimeTearDown]
+    public void TestFixtureTearDown()
+    {
+        _memoryCache.Dispose();
+    }
 
-        [TestCleanup]
-        public void TestTearDown()
-        {
-            var encryptionHelper = CreateEncryptionHelper();
-            encryptionHelper.KeyTableManager.DeleteTableIfExists();
 
-#if NET9_0
-#else
-            MemoryCache.Default.Dispose();
-#endif
-        }
+    [SetUp]
+    public void TestSetup()
+    {
+        //_tableManager.CreateTableIfNotExists();
+    }
 
-        [TestMethod]
-        public void TestConstructorSucceeds()
-        {
-            var encryptionHelper = CreateEncryptionHelper();
-            encryptionHelper.Should().NotBeNull("Constructor failed");
-        }
+    [TearDown]
+    public void TestTearDown()
+    {
+        //_tableManager.DeleteTableIfExists();
+    }
 
-        [TestMethod]
-        public void TestConstructorSucceedsWithUserId()
-        {
-            var encryptionHelper = CreateEncryptionHelper(TestUserId);
-            encryptionHelper.Should().NotBeNull("Constructor failed");
-        }
+    [Test]
+    public void TestConstructorSucceeds()
+    {
+        var encryptionHelper = CreateEncryptionHelper();
+        encryptionHelper.Should().NotBeNull("Constructor failed");
+    }
 
-        [TestMethod]
-        public void TestEncryptStringShouldSucceed()
-        {
-            var encryptionHelper = CreateEncryptionHelper();
-            var encryptedString = encryptionHelper.EncryptAndBase64(TestString);
+    [Test]
+    public void TestConstructorSucceedsWithUserId()
+    {
+        var encryptionHelper = CreateEncryptionHelper(TestUserId);
+        encryptionHelper.Should().NotBeNull("Constructor failed");
+    }
 
-            encryptedString.Should().NotBeNullOrEmpty("Encryptiong failed");
-            encryptedString.Length.Should().BeGreaterThan(0, "Encryption failed");
-        }
+    [Test]
+    public void TestEncryptStringShouldSucceed()
+    {
+        var encryptionHelper = CreateEncryptionHelper();
+        var encryptedString = encryptionHelper.EncryptAndBase64(TestString);
 
-        [TestMethod]
-        public void TestEncryptStringShouldSucceedWithUserId()
-        {
-            var encryptionHelper = CreateEncryptionHelper(TestUserId);
-            var encryptedString = encryptionHelper.EncryptAndBase64(TestString, TestUserId);
+        encryptedString.Should().NotBeNullOrEmpty("Encrypting failed");
+        encryptedString.Length.Should().BeGreaterThan(0, "Encryption failed");
+    }
 
-            encryptedString.Should().NotBeNullOrEmpty("Encryptiong failed");
-            encryptedString.Length.Should().BeGreaterThan(0, "Encryption failed");
-        }
+    [Test]
+    public void TestEncryptStringShouldSucceedWithUserId()
+    {
+        var encryptionHelper = CreateEncryptionHelper(TestUserId);
+        var encryptedString = encryptionHelper.EncryptAndBase64(TestString, TestUserId);
 
-        [TestMethod]
-        public void TestDecryptStringShouldSucceed()
-        {
-            var encryptionHelper = CreateEncryptionHelper();
-            var encryptedString = encryptionHelper.EncryptAndBase64(TestString);
-            var decryptedString = encryptionHelper.DecryptFromBase64(encryptedString);
+        encryptedString.Should().NotBeNullOrEmpty("Encrypting failed");
+        encryptedString.Length.Should().BeGreaterThan(0, "Encryption failed");
+    }
 
-            decryptedString.Should().NotBeNullOrEmpty("Encryptiong failed");
-            decryptedString.Length.Should().BeGreaterThan(0, "Encryption failed");
-            decryptedString.Should().BeEquivalentTo(TestString);
-        }
+    [Test]
+    public void TestDecryptStringShouldSucceed()
+    {
+        var encryptionHelper = CreateEncryptionHelper();
+        var encryptedString = encryptionHelper.EncryptAndBase64(TestString);
+        var decryptedString = encryptionHelper.DecryptFromBase64(encryptedString);
 
-        [TestMethod]
-        public void TestDecryptStringShouldSucceedWithUserId()
-        {
-            var encryptionHelper = CreateEncryptionHelper(TestUserId);
-            var encryptedString = encryptionHelper.EncryptAndBase64(TestString, TestUserId);
-            var decryptedString = encryptionHelper.DecryptFromBase64(encryptedString, TestUserId);
+        decryptedString.Should().NotBeNullOrEmpty("Encrypting failed");
+        decryptedString.Length.Should().BeGreaterThan(0, "Encryption failed");
+        decryptedString.Should().BeEquivalentTo(TestString);
+    }
 
-            decryptedString.Should().NotBeNullOrEmpty("Encryptiong failed");
-            decryptedString.Length.Should().BeGreaterThan(0, "Encryption failed");
-            decryptedString.Should().BeEquivalentTo(TestString);
-        }
+    [Test]
+    public void TestDecryptStringShouldSucceedWithUserId()
+    {
+        var encryptionHelper = CreateEncryptionHelper(TestUserId);
+        var encryptedString = encryptionHelper.EncryptAndBase64(TestString, TestUserId);
+        var decryptedString = encryptionHelper.DecryptFromBase64(encryptedString, TestUserId);
 
-        [TestMethod]
-        public void TestEncryptBinaryShouldSucceed()
-        {
-            var encryptionHelper = CreateEncryptionHelper();
-            var bytesToEncrypt = File.ReadAllBytes(Path.Combine(_testFileDeploymentDirectory, TestFileName));
-            var encryptedBytes = encryptionHelper.EncryptBytes(bytesToEncrypt);
+        decryptedString.Should().NotBeNullOrEmpty("Encrypting failed");
+        decryptedString.Length.Should().BeGreaterThan(0, "Encryption failed");
+        decryptedString.Should().BeEquivalentTo(TestString);
+    }
 
-            encryptedBytes.Should().NotBeNull("EncryptionFailed");
-        }
+    [Test]
+    public void TestEncryptBinaryShouldSucceed()
+    {
+        var encryptionHelper = CreateEncryptionHelper();
+        var bytesToEncrypt = File.ReadAllBytes(Path.Combine(_testFileDeploymentDirectory, TestFileName));
+        var encryptedBytes = encryptionHelper.EncryptBytes(bytesToEncrypt);
 
-        [TestMethod]
-        public void TestEncryptBinaryShouldSucceedWithUserId()
-        {
-            var encryptionHelper = CreateEncryptionHelper(TestUserId);
-            var bytesToEncrypt = File.ReadAllBytes(Path.Combine(_testFileDeploymentDirectory, TestFileName));
-            var encryptedBytes = encryptionHelper.EncryptBytes(bytesToEncrypt, TestUserId);
+        encryptedBytes.Should().NotBeNull("EncryptionFailed");
+    }
 
-            encryptedBytes.Should().NotBeNull("EncryptionFailed");
-        }
+    [Test]
+    public void TestEncryptBinaryShouldSucceedWithUserId()
+    {
+        var encryptionHelper = CreateEncryptionHelper(TestUserId);
+        var bytesToEncrypt = File.ReadAllBytes(Path.Combine(_testFileDeploymentDirectory, TestFileName));
+        var encryptedBytes = encryptionHelper.EncryptBytes(bytesToEncrypt, TestUserId);
 
-        [TestMethod]
-        public void TestDecryptBinaryShouldSucceed()
-        {
-            var pathToTestFile = Path.Combine(_testFileDeploymentDirectory, TestFileName);
-            var encryptionHelper = CreateEncryptionHelper();
-            var bytesToEncrypt = File.ReadAllBytes(pathToTestFile);
-            var encryptedBytes = encryptionHelper.EncryptBytes(bytesToEncrypt);
+        encryptedBytes.Should().NotBeNull("EncryptionFailed");
+    }
 
-            var decryptedBytes = encryptionHelper.DecryptBytes(encryptedBytes);
-            decryptedBytes.Should().NotBeNull("EncryptionFailed");
+    [Test]
+    public void TestDecryptBinaryShouldSucceed()
+    {
+        var pathToTestFile = Path.Combine(_testFileDeploymentDirectory, TestFileName);
+        var encryptionHelper = CreateEncryptionHelper();
+        var bytesToEncrypt = File.ReadAllBytes(pathToTestFile);
+        var encryptedBytes = encryptionHelper.EncryptBytes(bytesToEncrypt);
 
-            var decryptedTestContent = System.Text.Encoding.UTF8.GetString(decryptedBytes);
-            var originalContent = File.ReadAllText(pathToTestFile);
+        var decryptedBytes = encryptionHelper.DecryptBytes(encryptedBytes);
+        decryptedBytes.Should().NotBeNull("EncryptionFailed");
 
-            Assert.IsTrue(decryptedTestContent.Equals(originalContent, StringComparison.InvariantCultureIgnoreCase));
-        }
+        var decryptedTestContent = System.Text.Encoding.UTF8.GetString(decryptedBytes);
+        var originalContent = File.ReadAllText(pathToTestFile);
 
-        [TestMethod]
-        public void TestDecryptBinaryShouldSucceedWithUserId()
-        {
-            var pathToTestFile = Path.Combine(_testFileDeploymentDirectory, TestFileName);
-            var encryptionHelper = CreateEncryptionHelper(TestUserId);
-            var bytesToEncrypt = File.ReadAllBytes(pathToTestFile);
-            var encryptedBytes = encryptionHelper.EncryptBytes(bytesToEncrypt, TestUserId);
+        Assert.IsTrue(decryptedTestContent.Equals(originalContent, StringComparison.InvariantCultureIgnoreCase));
+    }
 
-            var decryptedBytes = encryptionHelper.DecryptBytes(encryptedBytes, TestUserId);
-            decryptedBytes.Should().NotBeNull("EncryptionFailed");
+    [Test]
+    public void TestDecryptBinaryShouldSucceedWithUserId()
+    {
+        var pathToTestFile = Path.Combine(_testFileDeploymentDirectory, TestFileName);
+        var encryptionHelper = CreateEncryptionHelper(TestUserId);
+        var bytesToEncrypt = File.ReadAllBytes(pathToTestFile);
+        var encryptedBytes = encryptionHelper.EncryptBytes(bytesToEncrypt, TestUserId);
 
-            var decryptedTestContent = System.Text.Encoding.UTF8.GetString(decryptedBytes);
-            var originalContent = File.ReadAllText(pathToTestFile);
+        var decryptedBytes = encryptionHelper.DecryptBytes(encryptedBytes, TestUserId);
+        decryptedBytes.Should().NotBeNull("EncryptionFailed");
 
-            Assert.IsTrue(decryptedTestContent.Equals(originalContent, StringComparison.InvariantCultureIgnoreCase));
-        }
+        var decryptedTestContent = System.Text.Encoding.UTF8.GetString(decryptedBytes);
+        var originalContent = File.ReadAllText(pathToTestFile);
 
-        private EncryptionHelper CreateEncryptionHelper(Guid? userId = null)
-        {
-#if NET9_0
-            return new EncryptionHelper(_encryptionSettings, _cache, _testFileDeploymentDirectory, userId);
-#else
-            return new EncryptionHelper(_testFileDeploymentDirectory, userId);
-#endif
-        }
+        Assert.IsTrue(decryptedTestContent.Equals(originalContent, StringComparison.InvariantCultureIgnoreCase));
+    }
+
+    private EncryptionHelper CreateEncryptionHelper(Guid? userId = null)
+    {
+        var tableManager = new SymmetricKeyTableManager(_memoryCache, TableName, _client);
+        tableManager.CreateTableIfNotExists();
+
+        return new EncryptionHelper(_encryptionSettings, _memoryCache, _testFileDeploymentDirectory, userId);
     }
 }

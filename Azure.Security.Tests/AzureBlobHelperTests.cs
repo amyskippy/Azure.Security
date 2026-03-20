@@ -1,121 +1,142 @@
-﻿namespace Azure.Security.Tests
+﻿using System;
+using System.IO;
+using System.Threading.Tasks;
+using FluentAssertions;
+using NUnit.Framework;
+
+namespace Azure.Security.Tests;
+
+[TestFixture]
+public class AzureBlobHelperTests
 {
-    using FluentAssertions;
-    using Microsoft.VisualStudio.TestTools.UnitTesting;
-    using System;
-    using System.IO;
+    private const string DirectoryName = "testdirectory";
+    private static readonly string ContainerName = Guid.NewGuid().ToString("N").ToLower();
+    private static readonly string ConnectionString = "UseDevelopmentStorage=true";
+    private const string TestString = "This is some random string used for this test";
 
-    [TestClass]
-    [DeploymentItem(@"TestFiles\TestCertificate.pfx")]
-    public class AzureBlobHelperTests
+    [OneTimeTearDown]
+    public static void TearDown()
     {
-        private const string DirectoryName = "testdirectory";
-        private static readonly string ContainerName = Guid.NewGuid().ToString("N").ToLower();
-        private static readonly string ConnectionString = "UseDevelopmentStorage=true";
-        private const string TestString = "This is some random string used for this test";
+        var helper = new AzureBlobHelper(ConnectionString, ContainerName);
+        helper.DeleteBlobContainer(ContainerName);
+    }
 
-        [ClassCleanup]
-        public static void TearDown()
+    [TearDown]
+    public void TestCleanup()
+    {
+        var helper = new AzureBlobHelper(ConnectionString, ContainerName);
+        var blobsToDelete = helper.GetBlobItemsByDirectory(ContainerName);
+        foreach (var blob in blobsToDelete)
         {
-            var helper = new AzureBlobHelper(ConnectionString, ContainerName);
-            helper.DeleteBlobContainer(ContainerName);
+            blob.DeleteIfExists();
         }
+    }
 
-        [TestCleanup]
-        public void TestCleanup()
-        {
-            var helper = new AzureBlobHelper(ConnectionString, ContainerName);
-            var blobsToDelete = helper.GetBlobItemsByDirectory(ContainerName);
-            foreach (var blob in blobsToDelete)
-            {
-                blob.DeleteIfExists();
-            }
-        }
+    [Test]
+    public void BlobHelperInitializationShouldSucceed()
+    {
+        var helper = new AzureBlobHelper(ConnectionString, ContainerName);
+        helper.Should().NotBeNull("Initialization has failed");
+    }
 
-        [TestMethod]
-        public void BlobHelperInitializationShouldSucceed()
-        {
-            var helper = new AzureBlobHelper(ConnectionString, ContainerName);
-            helper.Should().NotBeNull("Initialization has failed");
-        }
+    [Test]
+    public void BlobHelperAddOrCreateBlobShouldSucceed()
+    {
+        var stream = Serializer.SerializeToByteArray(TestString);
+        var helper = new AzureBlobHelper(ConnectionString, ContainerName);
+        var blobId = Guid.NewGuid().ToString("N");
+        helper.CreateOrUpdate(blobId, stream);
+        stream.Close();
 
-        [TestMethod]
-        public void BlobHelperAddOrCreateBlobShouldSucceed()
-        {
-            var stream = Serializer.SerializeToByteArray(TestString);
-            var helper = new AzureBlobHelper(ConnectionString, ContainerName);
-            var blobId = Guid.NewGuid().ToString("N");
-            helper.CreateOrUpdate(blobId, stream);
-            stream.Close();
+        var createdSuccessfully = helper.Exists(blobId);
+        createdSuccessfully.Should().BeTrue("The blob failed to be created or uploaded");
+    }
 
-            var createdSuccessfully = helper.Exists(blobId);
-            createdSuccessfully.Should().BeTrue("The blob failed to be created or uploaded");
-        }
+    [Test]
+    public void BlobHelperAddOrCreateDirectoryBlobShouldSucceed()
+    {
+        var stream = Serializer.SerializeToByteArray(TestString);
+        var helper = new AzureBlobHelper(ConnectionString, ContainerName);
+        var blobId = Guid.NewGuid().ToString("N");
+        var blobPath = Path.Combine(DirectoryName, blobId);
+        helper.CreateOrUpdate(blobPath, stream);
+        stream.Close();
 
-        [TestMethod]
-        public void BlobHelperAddOrCreateDirectoryBlobShouldSucceed()
-        {
-            var stream = Serializer.SerializeToByteArray(TestString);
-            var helper = new AzureBlobHelper(ConnectionString, ContainerName);
-            var blobId = Guid.NewGuid().ToString("N");
-            var blobPath = Path.Combine(DirectoryName, blobId);
-            helper.CreateOrUpdate(blobPath, stream);
-            stream.Close();
+        var createdSuccessfully = helper.Exists(blobId);
+        createdSuccessfully.Should().BeTrue("The blob failed to be created or uploaded");
+    }
 
-            var createdSuccessfully = helper.Exists(blobId);
-            createdSuccessfully.Should().BeTrue("The blob failed to be created or uploaded");
-        }
+    [Test]
+    public void BlobHelperDeleteBlobShouldSucceed()
+    {
+        var serializedKey = Serializer.SerializeToByteArray(TestString);
+        var helper = new AzureBlobHelper(ConnectionString, ContainerName);
+        var blobId = Guid.NewGuid().ToString("N");
+        helper.CreateOrUpdate(blobId, serializedKey);
 
-        [TestMethod]
-        public void BlobHelperDeleteBlobShouldSucceed()
-        {
-            var serializedKey = Serializer.SerializeToByteArray(TestString);
-            var helper = new AzureBlobHelper(ConnectionString, ContainerName);
-            var blobId = Guid.NewGuid().ToString("N");
-            helper.CreateOrUpdate(blobId, serializedKey);
+        var createdSuccessfully = helper.Exists(blobId);
+        createdSuccessfully.Should().BeTrue("The create or upload operation failed");
 
-            var createdSuccessfully = helper.Exists(blobId);
-            createdSuccessfully.Should().BeTrue("The create or upload operation failed");
+        helper.Delete(blobId);
 
-            helper.Delete(blobId);
+        var blobDoesExist = helper.Exists(blobId);
+        blobDoesExist.Should().BeFalse("The delete operation failed");
+    }
 
-            var blobDoesExist = helper.Exists(blobId);
-            blobDoesExist.Should().BeFalse("The delete operation failed");
-        }
+    [Test]
+    public void BlobHelperExistsShouldReturnFalseForInexistentBlob()
+    {
+        var helper = new AzureBlobHelper(ConnectionString, ContainerName);
+        var blobExists = helper.Exists("RandomId");
+        blobExists.Should().BeFalse("No blob with RandomId should exist");
+    }
 
-        [TestMethod]
-        public void BlobHelperExistsShouldReturnFalseForInexistentBlob()
-        {
-            var helper = new AzureBlobHelper(ConnectionString, ContainerName);
-            var blobExists = helper.Exists("RandomId");
-            blobExists.Should().BeFalse("No blob with RandomId should exist");
-        }
+    [Test]
+    public void BlobHelperGetShouldReturnTheCorrectObject()
+    {
+        var serializedKey = Serializer.SerializeToByteArray(TestString);
+        var helper = new AzureBlobHelper(ConnectionString, ContainerName);
+        var blobId = Guid.NewGuid().ToString("N");
+        helper.CreateOrUpdate(blobId, serializedKey);
 
-        [TestMethod]
-        public void BlobHelperGetShouldReturnTheCorrectObject()
-        {
-            var serializedKey = Serializer.SerializeToByteArray(TestString);
-            var helper = new AzureBlobHelper(ConnectionString, ContainerName);
-            var blobId = Guid.NewGuid().ToString("N");
-            helper.CreateOrUpdate(blobId, serializedKey);
+        var createdSuccessfully = helper.Exists(blobId);
+        createdSuccessfully.Should().BeTrue("The create or upload operation failed");
 
-            var createdSuccessfully = helper.Exists(blobId);
-            createdSuccessfully.Should().BeTrue("The create or upload operation failed");
+        var stream = helper.Get(blobId);
+        stream.Should().NotBeNull("Failed to get memory stream from blob");
 
-            var stream = helper.Get(blobId);
-            stream.Should().NotBeNull("Failed to get memory stream from blob");
+        var deserializedObject = Serializer.DeserializeFromStream<string>(stream);
+        deserializedObject.Should().NotBeNull("Object was created successfully");
 
-#if NET9_0
-            var deserializedObject = Serializer.DeserializeFromStream<string>(stream);
-            deserializedObject.Should().NotBeNull("Object was created successfully");
-            
-            TestString.Should().BeEquivalentTo(deserializedObject);
-#else
-            var deserializedObject = Serializer.DeserializeFromStream(stream);
-            deserializedObject.Should().NotBeNull("Object was created successfully");
+        TestString.Should().BeEquivalentTo(deserializedObject);
+    }
 
-            TestString.Should().BeEquivalentTo(deserializedObject.ToString());
-#endif
-        }
+    [Test]
+    public void BlobHelperGetForMissingBlobShouldThrow()
+    {
+        var helper = new AzureBlobHelper(ConnectionString, ContainerName);
+        var blobId = Guid.NewGuid().ToString("N");
+        Action act = () => helper.Get(blobId);
+        act.Should().Throw<RequestFailedException>();
+    }
+
+    [Test]
+    public async Task BlobHelperGetAsyncShouldReturnTheCorrectObject()
+    {
+        var serializedKey = Serializer.SerializeToByteArray(TestString);
+        var helper = new AzureBlobHelper(ConnectionString, ContainerName);
+        var blobId = Guid.NewGuid().ToString("N");
+        await helper.CreateOrUpdateAsync(blobId, serializedKey);
+
+        var createdSuccessfully = await helper.ExistsAsync(blobId);
+        createdSuccessfully.Should().BeTrue("The create or upload operation failed");
+
+        await using var stream = await helper.GetAsync(blobId);
+        stream.Should().NotBeNull("Failed to get stream from blob");
+
+        var deserializedObject = Serializer.DeserializeFromStream<string>(stream);
+        deserializedObject.Should().NotBeNull("Object was created successfully");
+
+        TestString.Should().BeEquivalentTo(deserializedObject);
     }
 }

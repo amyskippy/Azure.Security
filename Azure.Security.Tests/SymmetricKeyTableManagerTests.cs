@@ -1,148 +1,124 @@
-﻿
+﻿using System;
+using System.IO;
+using System.Security.Cryptography.X509Certificates;
+using Azure.Data.Tables;
+using Azure.Security.Exceptions;
+using FluentAssertions;
+using Microsoft.Extensions.Caching.Memory;
+using NUnit.Framework;
 
-namespace Azure.Security.Tests
+namespace Azure.Security.Tests;
+
+[TestFixture]
+public class SymmetricKeyTableManagerTests
 {
-    using Data.Tables;
-    using Exceptions;
-    using FluentAssertions;
-    using Microsoft.VisualStudio.TestTools.UnitTesting;
-    using System;
-    using System.IO;
+    private static string _testFileDeploymentDirectory = null!;
 
-#if NET9_0
-    using Microsoft.Extensions.Caching.Memory;
-#else
-    using System.Runtime.Caching;
-#endif
+    private const string TableName = "RandomTableName";
+    private const string CertificatePassword = "test";
+    private static readonly Guid TestUserId = new("e6f41e92-a89f-47ab-b511-224260f3bb55");
+    private readonly TableServiceClient _client = new("UseDevelopmentStorage=true");
+    private static RsaHelper _rsaHelper = null!;
+    private readonly IMemoryCache _memoryCache = new MemoryCache(new MemoryCacheOptions());
 
-    [TestClass]
-    [DeploymentItem(@"TestFiles\TestCertificate.pfx")]
-    public class SymmetricKeyTableManagerTests
+    [OneTimeSetUp]
+    public void TestSetup()
     {
-        private const string TableName = "RandomTableName";
-        private static readonly Guid TestUserId = new("e6f41e92-a89f-47ab-b511-224260f3bb55");
-        private readonly TableServiceClient _client = new("UseDevelopmentStorage=true");
-        private static RsaHelper _rsaHelper;
+        _testFileDeploymentDirectory = Path.Combine(TestContext.CurrentContext.TestDirectory, "TestFiles");
+        var certificatePath = Path.Combine(_testFileDeploymentDirectory, "TestCertificate.pfx");
+        _rsaHelper = new RsaHelper(certificatePath, CertificatePassword, X509KeyStorageFlags.EphemeralKeySet);
+    }
 
-#if NET9_0
-        private Cache _cache;
-#endif
+    [OneTimeTearDown]
+    public void TestFixtureTearDown()
+    {
+        _memoryCache.Dispose();
+    }
 
-        public TestContext TestContext { get; set; }
+    [TearDown]
+    public void TestTearDown()
+    {
+        if (_client.Exists(TableName))
+            _client.GetTableClient(TableName).Delete();
+    }
 
-        [TestInitialize]
-        public void TestSetup()
-        {
-#if NET9_0
-            _cache = new Cache(new MemoryCache(new MemoryCacheOptions()));
-#else
-#endif
-            var deploymentDirectory = TestContext.DeploymentDirectory;
-            _rsaHelper = new RsaHelper(Path.Combine(deploymentDirectory, "TestCertificate.pfx"), "test");
-        }
+    [Test]
+    public void ConstructorShouldInitializeSuccessfully()
+    {
+        var symmetricTableManager = CreateSymmetricKeyTableManager();
+        symmetricTableManager.Should().NotBeNull("Initialization failed.");
+    }
 
-        [TestCleanup]
-        public void TestTearDown()
-        {
-            if (_client.Exists(TableName))
-                _client.GetTableClient(TableName).Delete();
-#if NET9_0
-#else
-            MemoryCache.Default.Dispose();
-#endif
-        }
+    [Test]
+    public void GetKeyShouldThrowAnException()
+    {
+        var symmetricTableManager = CreateSymmetricKeyTableManager();
+        symmetricTableManager.CreateTableIfNotExists();
 
-        [TestMethod]
-        public void ConstructorShouldInitializeSuccessfully()
-        {
-            var symmetricTableManager = CreateSymmetricKeyTableManager();
-            symmetricTableManager.Should().NotBeNull("Initialization failed.");
-        }
+        var action = () => symmetricTableManager.GetKey(null);
+        action.Should().Throw<AzureCryptoException>();
+    }
 
-        [TestMethod]
-        public void GetKeyShouldReturnNull()
-        {
-            var symmetricTableManager = CreateSymmetricKeyTableManager();
-            symmetricTableManager.CreateTableIfNotExists();
-            var key = symmetricTableManager.GetKey(null);
+    [Test]
+    public void GetKeyShouldReturnOneKey()
+    {
+        var symmetricTableManager = CreateSymmetricKeyTableManager();
+        symmetricTableManager.CreateTableIfNotExists();
+        var newKey = _rsaHelper.CreateNewAesSymmetricKeyset();
+        symmetricTableManager.AddSymmetricKey(newKey);
 
-            key.Should().BeNull("The get query did not return null as expected");
-        }
+        var key = symmetricTableManager.GetKey(null);
 
-        [TestMethod]
-        public void GetKeyShouldThrowAnException()
-        {
-            var symmetricTableManager = CreateSymmetricKeyTableManager();
+        key.Should().NotBeNull("The get query failed");
+    }
 
-            Action action = () => symmetricTableManager.GetKey(null);
-            action.Should().Throw<AzureCryptoException>();
-        }
+    [Test]
+    public void GetKeyShouldReturnOneKeyWithUserId()
+    {
+        var symmetricTableManager = CreateSymmetricKeyTableManager();
+        symmetricTableManager.CreateTableIfNotExists();
+        var newKey = _rsaHelper.CreateNewAesSymmetricKeyset(TestUserId);
+        symmetricTableManager.AddSymmetricKey(newKey);
 
-        [TestMethod]
-        public void GetKeyShouldReturnOneKey()
-        {
-            var symmetricTableManager = CreateSymmetricKeyTableManager();
-            symmetricTableManager.CreateTableIfNotExists();
-            var newKey = _rsaHelper.CreateNewAesSymmetricKeyset(null);
-            symmetricTableManager.AddSymmetricKey(newKey);
+        var key = symmetricTableManager.GetKey(TestUserId);
 
-            var key = symmetricTableManager.GetKey(null);
+        key.Should().NotBeNull("The get query failed");
+    }
 
-            key.Should().NotBeNull("The get query failed");
-        }
+    [Test]
+    public void DeleteKeyShouldSucceed()
+    {
+        var symmetricTableManager = CreateSymmetricKeyTableManager();
+        symmetricTableManager.CreateTableIfNotExists();
+        var newKey = _rsaHelper.CreateNewAesSymmetricKeyset();
+        symmetricTableManager.AddSymmetricKey(newKey);
 
-        [TestMethod]
-        public void GetKeyShouldReturnOneKeyWithUserId()
-        {
-            var symmetricTableManager = CreateSymmetricKeyTableManager();
-            symmetricTableManager.CreateTableIfNotExists();
-            var newKey = _rsaHelper.CreateNewAesSymmetricKeyset(TestUserId);
-            symmetricTableManager.AddSymmetricKey(newKey);
+        var key = symmetricTableManager.GetKey(null);
+        key.Should().NotBeNull("Insert operation failed");
 
-            var key = symmetricTableManager.GetKey(TestUserId);
+        symmetricTableManager.DeleteSymmetricKey(newKey);
+        var action = () => symmetricTableManager.GetKey(null);
+        action.Should().Throw<AzureCryptoException>();
+    }
 
-            key.Should().NotBeNull("The get query failed");
-        }
+    [Test]
+    public void DeleteKeyShouldSucceedWithUserId()
+    {
+        var symmetricTableManager = CreateSymmetricKeyTableManager();
+        symmetricTableManager.CreateTableIfNotExists();
+        var newKey = _rsaHelper.CreateNewAesSymmetricKeyset(TestUserId);
+        symmetricTableManager.AddSymmetricKey(newKey);
 
-        [TestMethod]
-        public void DeleteKeyShouldSucceed()
-        {
-            var symmetricTableManager = CreateSymmetricKeyTableManager();
-            symmetricTableManager.CreateTableIfNotExists();
-            var newKey = _rsaHelper.CreateNewAesSymmetricKeyset(null);
-            symmetricTableManager.AddSymmetricKey(newKey);
+        var key = symmetricTableManager.GetKey(TestUserId);
+        key.Should().NotBeNull("Insert operation failed");
 
-            var key = symmetricTableManager.GetKey(null);
-            key.Should().NotBeNull("Insert operation failed");
+        symmetricTableManager.DeleteSymmetricKey(newKey);
+        var action = () => symmetricTableManager.GetKey(TestUserId);
+        action.Should().Throw<AzureCryptoException>();
+    }
 
-            symmetricTableManager.DeleteSymmetricKey(newKey);
-            key = symmetricTableManager.GetKey(null);
-            key.Should().BeNull("Delete operation failed");
-        }
-
-        [TestMethod]
-        public void DeleteKeyShouldSucceedWithUserId()
-        {
-            var symmetricTableManager = CreateSymmetricKeyTableManager();
-            symmetricTableManager.CreateTableIfNotExists();
-            var newKey = _rsaHelper.CreateNewAesSymmetricKeyset(TestUserId);
-            symmetricTableManager.AddSymmetricKey(newKey);
-
-            var key = symmetricTableManager.GetKey(TestUserId);
-            key.Should().NotBeNull("Insert operation failed");
-
-            symmetricTableManager.DeleteSymmetricKey(newKey);
-            key = symmetricTableManager.GetKey(TestUserId);
-            key.Should().BeNull("Delete operation failed");
-        }
-
-        private SymmetricKeyTableManager CreateSymmetricKeyTableManager()
-        {
-#if NET9_0
-            return new SymmetricKeyTableManager(_cache, TableName, _client);
-#else
-            return new SymmetricKeyTableManager(TableName, _client);
-#endif
-        }
+    private SymmetricKeyTableManager CreateSymmetricKeyTableManager()
+    {
+        return new SymmetricKeyTableManager(_memoryCache, TableName, _client);
     }
 }
