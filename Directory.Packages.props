@@ -1,0 +1,21 @@
+<Project>
+  <PropertyGroup>
+    <!-- Enable central package management, https://learn.microsoft.com/en-us/nuget/consume-packages/Central-Package-Management -->
+    <ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>
+    <!-- Overide transient package versions, https://learn.microsoft.com/en-us/nuget/consume-packages/central-package-management#transitive-pinning -->
+    <CentralPackageTransitivePinningEnabled>true</CentralPackageTransitivePinningEnabled>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageVersion Include="Azure.Data.Tables" Version="12.8.1" />
+    <PackageVersion Include="Azure.Storage.Blobs" Version="12.18.0" />
+    <PackageVersion Include="Microsoft.Extensions.Caching.Memory" Version="9.0.10" />
+    <PackageVersion Include="System.Diagnostics.DiagnosticSource" Version="9.0.10" />
+    <PackageVersion Include="Microsoft.Extensions.Configuration" Version="9.0.10" />
+    <PackageVersion Include="FluentAssertions" Version="6.12.0" />
+
+    <PackageVersion Include="nunit" Version="4.5.1" />
+    <PackageVersion Include="NUnit3TestAdapter" Version="6.1.0" />
+    <PackageVersion Include="Microsoft.NET.Test.Sdk" Version="18.3.0" />
+    <PackageVersion Include="NUnit.Analyzers" Version="4.12.0" />
+  </ItemGroup>
+</Project>

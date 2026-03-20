@@ -7,6 +7,12 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Azure.Security", "Azure.Sec
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Azure.Security.Tests", "..\Azure.Security.Tests\Azure.Security.Tests.csproj", "{A0769C71-65E0-43DA-AE7D-9879E315EC92}"
 EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Config", "Config", "{CD97AF2A-C7B3-4F35-8231-A9DFFA22F702}"
+	ProjectSection(SolutionItems) = preProject
+		..\Directory.Packages.props = ..\Directory.Packages.props
+		..\global.json = ..\global.json
+	EndProjectSection
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
