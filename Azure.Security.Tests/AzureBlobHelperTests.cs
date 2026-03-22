@@ -131,7 +131,12 @@ public class AzureBlobHelperTests
         var createdSuccessfully = await helper.ExistsAsync(blobId);
         createdSuccessfully.Should().BeTrue("The create or upload operation failed");
 
+#if NETFRAMEWORK
+        using var stream = await helper.GetAsync(blobId);
+#elif NET9_0_OR_GREATER
         await using var stream = await helper.GetAsync(blobId);
+#endif
+        
         stream.Should().NotBeNull("Failed to get stream from blob");
 
         var deserializedObject = Serializer.DeserializeFromStream<string>(stream);

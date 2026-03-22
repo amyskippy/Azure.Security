@@ -8,12 +8,16 @@ namespace Azure.Security;
 
 public class RsaHelper : IRsaHelper
 {
-    private static readonly UnicodeEncoding ByteConverter = new UnicodeEncoding();
+    private static readonly UnicodeEncoding ByteConverter = new();
     private readonly X509Certificate2 _x509;
 
     public RsaHelper(string certificatePath, string password, X509KeyStorageFlags flag = X509KeyStorageFlags.MachineKeySet)
     {
+#if NETFRAMEWORK
+        _x509 = new X509Certificate2(System.IO.File.ReadAllBytes(certificatePath), password, flag);
+#elif NET9_0_OR_GREATER
         _x509 = X509CertificateLoader.LoadPkcs12FromFile(certificatePath, password, flag);
+#endif
     }
 
     public byte[] RsaEncryptString(string plainText)

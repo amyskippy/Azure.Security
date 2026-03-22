@@ -142,7 +142,11 @@ public class AzureBlobHelper : IBlobHelper
 
     public IEnumerable<BlobClient> GetBlobItemsByDirectory(string directoryName)
     {
+#if NETFRAMEWORK
+        if (!directoryName.EndsWith("/"))
+#elif NET9_0_OR_GREATER
         if (!directoryName.EndsWith('/'))
+#endif
             directoryName += "/";
 
         var blobs = _blobContainerClient.GetBlobs(options: new GetBlobsOptions { Prefix = directoryName });
@@ -152,7 +156,11 @@ public class AzureBlobHelper : IBlobHelper
 
     public async IAsyncEnumerable<BlobClient> GetBlobItemsByDirectoryAsync(string directoryName, [EnumeratorCancellation] CancellationToken cancellationToken = default)
     {
+#if NETFRAMEWORK
+        if (!directoryName.EndsWith("/"))
+#elif NET9_0_OR_GREATER
         if (!directoryName.EndsWith('/'))
+#endif
             directoryName += "/";
 
         await foreach (var blob in _blobContainerClient.GetBlobsAsync(options: new GetBlobsOptions { Prefix = directoryName }, cancellationToken: cancellationToken).ConfigureAwait(false))
