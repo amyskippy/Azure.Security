@@ -21,7 +21,7 @@ public class EncryptionHelper : IEncryptionHelper
         IMemoryCache cache,
         string pathToCertificate,
         Guid? userId = null,
-        X509KeyStorageFlags keyStorageFlags = X509KeyStorageFlags.DefaultKeySet)
+        X509KeyStorageFlags keyStorageFlags = X509KeyStorageFlags.UserKeySet)
     {
         var config = settings.Value;
 
@@ -38,7 +38,7 @@ public class EncryptionHelper : IEncryptionHelper
         KeyTableManager = new SymmetricKeyTableManager(cache, config.CertificateTable, StorageAccount);
 
         var certificatePath = Path.Combine(pathToCertificate, config.CertificateName);
-        RsaHelper = new RsaHelper(certificatePath, config.CertificateValue, X509KeyStorageFlags.EphemeralKeySet);
+        RsaHelper = new RsaHelper(certificatePath, config.CertificateValue, keyStorageFlags);
 
         // Create the master key if it doesn't exist
         CreateNewCryptoKeyIfNotExists(userId);

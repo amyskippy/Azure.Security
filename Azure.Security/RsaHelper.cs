@@ -11,7 +11,7 @@ public class RsaHelper : IRsaHelper
     private static readonly UnicodeEncoding ByteConverter = new();
     private readonly X509Certificate2 _x509;
 
-    public RsaHelper(string certificatePath, string password, X509KeyStorageFlags flag = X509KeyStorageFlags.EphemeralKeySet)
+    public RsaHelper(string certificatePath, string password, X509KeyStorageFlags flag = X509KeyStorageFlags.UserKeySet)
     {
 #if NETFRAMEWORK
         _x509 = new X509Certificate2(System.IO.File.ReadAllBytes(certificatePath), password, flag);
