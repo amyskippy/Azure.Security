@@ -1,56 +1,9 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
     <PropertyGroup>
-        <TargetFrameworks>net9.0;net10.0;net481</TargetFrameworks>
+        <TargetFrameworks>net481;net9.0;net10.0</TargetFrameworks>
         <LangVersion>latest</LangVersion>
         <Nullable>enable</Nullable>
-
     </PropertyGroup>
-    <PropertyGroup Condition="$(Configuration.Contains('Debug'))">
-        <DefineConstants>DEBUG;TRACE</DefineConstants>
-        <DebugSymbols>true</DebugSymbols>
-        <DebugType>full</DebugType>
-        <Optimize>false</Optimize>
-    </PropertyGroup>
-
-    <PropertyGroup Condition="$(Configuration.Contains('Release'))">
-        <DefineConstants>TRACE</DefineConstants>
-        <DebugSymbols>false</DebugSymbols>
-        <DebugType>pdbonly</DebugType>
-        <Optimize>true</Optimize>
-    </PropertyGroup>
-
-    <ItemGroup>
-        <PackageReference Include="Azure.Data.Tables" />
-        <PackageReference Include="Azure.Storage.Blobs" />
-        <PackageReference Include="FluentAssertions" />
-        <PackageReference Include="Microsoft.Extensions.Caching.Memory" />
-        <PackageReference Include="Microsoft.Extensions.Configuration" />
-
-        <PackageReference Include="nunit" />
-        <PackageReference Include="NUnit3TestAdapter"/>
-        <PackageReference Include="Microsoft.NET.Test.Sdk" />
-        <PackageReference Include="NUnit.Analyzers">
-            <PrivateAssets>all</PrivateAssets>
-            <IncludeAssets>runtime; build; native; contentfiles; analyzers</IncludeAssets>
-        </PackageReference>
-    </ItemGroup>
-
-    <ItemGroup>
-        <Content Include="TestFiles\TestCertificate.pfx">
-            <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-        </Content>
-        <Content Include="TestFiles\TestTextFile.txt">
-            <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-        </Content>
-    </ItemGroup>
-
-    <ItemGroup>
-        <None Include="App.config" />
-    </ItemGroup>
-
-    <ItemGroup>
-        <Service Include="{82A7F48D-3B50-4B1E-B82E-3ADA8210C358}" />
-    </ItemGroup>
 
     <ItemGroup>
         <ProjectReference Include="..\Azure.Security\Azure.Security.csproj">
@@ -60,7 +13,32 @@
     </ItemGroup>
 
     <ItemGroup>
-        <Folder Include="Properties\" />
+        <PackageReference Include="Azure.Data.Tables" />
+        <PackageReference Include="Azure.Storage.Blobs" />
+        <PackageReference Include="FluentAssertions" />
+        <PackageReference Include="Microsoft.Extensions.Caching.Memory" />
+        <PackageReference Include="Microsoft.Extensions.Configuration" />
+
+        <PackageReference Include="nunit" />
+        <PackageReference Include="NUnit3TestAdapter" />
+        <PackageReference Include="Microsoft.NET.Test.Sdk" />
+        <PackageReference Include="NUnit.Analyzers">
+            <PrivateAssets>all</PrivateAssets>
+            <IncludeAssets>runtime; build; native; contentfiles; analyzers</IncludeAssets>
+        </PackageReference>
+    </ItemGroup>
+
+    <ItemGroup>
+        <Content Include="TestFiles\TestCertificate.pfx">
+            <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+        </Content>
+        <Content Include="TestFiles\TestTextFile.txt">
+            <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+        </Content>
+    </ItemGroup>
+
+    <ItemGroup>
+        <Service Include="{82A7F48D-3B50-4B1E-B82E-3ADA8210C358}" />
     </ItemGroup>
 
 </Project>
